@@ -9,9 +9,13 @@
 
 using namespace std;
 
-shared_ptr<Model> targetModel;
-Vector3 centerpos;
-shared_ptr<BVH> targetBVH;
+namespace {
+  shared_ptr<Model> targetModel;
+  Vector3 centerpos;
+  shared_ptr<BVH> targetBVH;
+  int currentDepth = 0;
+  vector<BoundingBox> boxes;
+}
 
 void resize(int w, int h)
 {
@@ -39,6 +43,9 @@ void display()
   /* éãì_à íuÇ∆éãê¸ï˚å¸ */
   gluLookAt(0.0, 0.001, -100, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
+  glEnable(GL_LIGHTING);
+  glEnable(GL_LIGHT0);
+
   GLfloat light0Pos[] = {0,100,0,1};
   GLfloat light0Color[] = {1,1,1,1};
   glLightfv(GL_LIGHT0, GL_POSITION, light0Pos);
@@ -52,6 +59,7 @@ void display()
   GLfloat ambient[] = {0.5, 0.5, 0.5, 1.0};
   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, ambient);
 
+  // draw model
   if (targetModel) {
     for (int i=0; i<targetModel->getMaterialCount(); i++) {
       const Material &mat = targetModel->getMaterial(i);
@@ -67,6 +75,47 @@ void display()
     }
   }
 
+  glDisable(GL_LIGHTING);
+
+  // draw bounding boxes
+  const int colorlistnum = 8;
+  GLfloat colors[colorlistnum][4] = {
+    {0.1,0.1,0.1},
+    {0.1,0.1,0.9},
+    {0.1,0.9,0.1},
+    {0.9,0.1,0.1},
+    {0.1,0.9,0.9},
+    {0.9,0.9,0.1},
+    {0.9,0.1,0.9},
+    {0.9,0.9,0.9}
+  };
+  for (size_t i=0; i<boxes.size(); i++) {
+    const BoundingBox &b = boxes[i];
+    Vector3 min = (b.min() - centerpos)*rate;
+    Vector3 max = (b.max() - centerpos)*rate;
+    GLfloat pos[][4] = {{min.x, min.y, min.z, 0.0},
+      {max.x, min.y, min.z, 0.0},
+      {min.x, max.y, min.z, 0.0},
+      {min.x, min.y, max.z, 0.0},
+      {max.x, max.y, min.z, 0.0},
+      {max.x, min.y, max.z, 0.0},
+      {min.x, max.y, max.z, 0.0},
+      {max.x, max.y, max.z, 0.0}};
+
+    const int indices[12][2] = {
+      {0,1},{0,3},{5,1},{5,3},{2,4},{2,6},{7,4},{7,6},{0,2},{1,4},{3,6},{5,7}
+    };
+
+    for (int j=0; j<12; j++) {
+      glBegin(GL_LINES);
+      glColor3fv(colors[i]);
+      glVertex3fv(pos[indices[j][0]]);
+      glColor3fv(colors[i]);
+      glVertex3fv(pos[indices[j][1]]);
+      glEnd();
+    }
+  }
+
   glFlush();
 }
 
@@ -75,18 +124,37 @@ void idle(void)
   glutPostRedisplay();
 }
 
+void updateBoundingBoxes()
+{
+  if (!targetBVH) return;
+
+  targetBVH->CollectBoundingBoxes(currentDepth, boxes);
+  cerr << "current depth of bounding boxes = " << currentDepth << endl;
+}
+
 void keyboard(unsigned char key, int x, int y)
 {
   switch (key) {
   case '+':
     rate += 0.1;
+    cerr << "current scaling = " << rate << endl;
     glutPostRedisplay();
     break;
   case '-':
     rate = std::max(rate-0.1, 0.001);
+    cerr << "current scaling = " << rate << endl;
     glutPostRedisplay();
     break;
 
+  case 'n':
+    currentDepth++;
+    updateBoundingBoxes();
+    break;
+
+  case 'p':
+    currentDepth = std::max(currentDepth-1, 0);
+    updateBoundingBoxes();
+    break;
   }
 }
 
@@ -138,11 +206,13 @@ void constructBVH()
   centerpos /= num;
 
   targetBVH->Construct(BVH::CONSTRUCTION_OBJECT_SAH, targets);
+
+  updateBoundingBoxes();
 }
 
 void init(void)
 {
-  glClearColor(0,0,1,1);
+  glClearColor(1,1,1,1);
 
   targetModel.reset(new Model);
   if (!targetModel->readFromObj("torii.obj")) {
@@ -151,8 +221,6 @@ void init(void)
     exit(-1);
   }
 
-  glEnable(GL_LIGHTING);
-  glEnable(GL_LIGHT0);
 
   constructBVH();
 }

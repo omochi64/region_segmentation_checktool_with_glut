@@ -265,3 +265,29 @@ void BVH::Construct_internal(const CONSTRUCTION_TYPE type, const std::vector<Sce
   Construct_internal(type, lefts, current->children[0]);
   Construct_internal(type, rights, current->children[1]);
 }
+
+void BVH::CollectBoundingBoxes(int depth, std::vector<BoundingBox> &result)
+{
+  result.clear();
+  result.reserve(m_bvh_node_size);
+  CollectBoundingBoxes_internal(0, depth, 0, result);
+}
+
+void BVH::CollectBoundingBoxes_internal(int currentDepth, int targetDepth, int index, std::vector<BoundingBox> &result)
+{
+  if (targetDepth < currentDepth) return;
+
+  BVH_structure *current = &m_root[index];
+
+  if (targetDepth == currentDepth)
+  {
+    result.push_back(current->box);
+    return;
+  }
+
+  if (current->children[0] == -1) return;
+  CollectBoundingBoxes_internal(currentDepth+1, targetDepth, current->children[0], result);
+
+  if (current->children[1] == -1) return;
+  CollectBoundingBoxes_internal(currentDepth+1, targetDepth, current->children[1], result);
+}

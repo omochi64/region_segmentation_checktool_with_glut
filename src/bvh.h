@@ -19,9 +19,13 @@ public:
   void Construct(const CONSTRUCTION_TYPE type, const std::vector<SceneObject *> &targets);
   bool CheckIntersection(const Ray &ray, Scene::IntersectionInformation &info) const;
 
+  void CollectBoundingBoxes(int depth, std::vector<BoundingBox> &result);
+
 private:
   void Construct_internal(const CONSTRUCTION_TYPE type, const std::vector<SceneObject *> &targets, int index);
   void MakeLeaf_internal(const std::vector<SceneObject *> &targets, int index);
+
+  void CollectBoundingBoxes_internal(int currentDepth, int targetDepth, int index, std::vector<BoundingBox> &result);
 
 private:
   class BVH_structure;
