@@ -1,18 +1,22 @@
 
-#include "vector.h"
-#include "model.h"
-#include "bvh.h"
+#include "tools/vector.h"
+#include "renderer/model.h"
+#include "renderer/bvh.h"
+#include "renderer/QBVH.h"
 
 #include <iostream>
 #include <memory>
 #include "GL/glut.h"
 
 using namespace std;
+using namespace SimpleRenderer;
 
 namespace {
   shared_ptr<Model> targetModel;
   Vector3 centerpos;
   shared_ptr<BVH> targetBVH;
+  shared_ptr<QBVH> targetQBVH;
+  bool showBVH = true;
   int currentDepth = 0;
   vector<BoundingBox> boxes;
   double rate = 1.0;
@@ -22,9 +26,14 @@ namespace {
 
 void updateBoundingBoxes()
 {
-  if (!targetBVH) return;
+  if (showBVH) {
+    if (!targetBVH) return;
 
-  targetBVH->CollectBoundingBoxes(currentDepth, boxes);
+    targetBVH->CollectBoundingBoxes(currentDepth, boxes);
+  } else {
+    if (!targetQBVH) return;
+    targetQBVH->CollectBoundingBoxes(currentDepth, boxes);
+  }
   cerr << "current depth of bounding boxes = " << currentDepth << endl;
 }
 
@@ -36,13 +45,14 @@ void constructBVH()
   }
 
   targetBVH.reset(new BVH);
+  targetQBVH.reset(new QBVH);
 
   vector<SceneObject *> targets;
   centerpos = Vector3::Zero();
   int num = 0;
-  for (int i=0; i<targetModel->getMaterialCount(); i++) {
-    const Material &mat = targetModel->getMaterial(i);
-    const Model::PolygonList &objs = targetModel->getPolygonList(mat);
+  for (int i=0; i<targetModel->GetMaterialCount(); i++) {
+    const Material &mat = targetModel->GetMaterial(i);
+    const Model::PolygonList &objs = targetModel->GetPolygonList(mat);
     for (int j=0; j<objs.size(); j++) {
       targets.push_back(objs[j]);
       num++;
@@ -53,6 +63,7 @@ void constructBVH()
   centerpos /= num;
 
   targetBVH->Construct(BVH::CONSTRUCTION_OBJECT_SAH, targets);
+  targetQBVH->Construct(targets);
 
   updateBoundingBoxes();
 }
@@ -97,9 +108,9 @@ void display()
 
   // draw model
   if (targetModel) {
-    for (int i=0; i<targetModel->getMaterialCount(); i++) {
-      const Material &mat = targetModel->getMaterial(i);
-      const Model::PolygonList &objs = targetModel->getPolygonList(mat);
+    for (int i=0; i<targetModel->GetMaterialCount(); i++) {
+      const Material &mat = targetModel->GetMaterial(i);
+      const Model::PolygonList &objs = targetModel->GetPolygonList(mat);
       for (int j=0; j<objs.size(); j++) {
         glBegin(GL_POLYGON);
         glNormal3d(-objs[j]->m_normal.x, -objs[j]->m_normal.y, -objs[j]->m_normal.z);
@@ -183,6 +194,15 @@ void keyboard(unsigned char key, int x, int y)
     currentDepth = std::max(currentDepth-1, 0);
     updateBoundingBoxes();
     break;
+
+  case 'b':
+    showBVH = true;
+    updateBoundingBoxes();
+    break;
+  case 'q':
+    showBVH = false;
+    updateBoundingBoxes();
+    break;
   }
 }
 
@@ -214,7 +234,7 @@ void init(void)
   glClearColor(1,1,1,1);
 
   targetModel.reset(new Model);
-  if (!targetModel->readFromObj("torii.obj")) {
+  if (!targetModel->ReadFromObj("torii.obj")) {
     cerr << "Failed to load the model" << endl;
     getchar();
     exit(-1);
