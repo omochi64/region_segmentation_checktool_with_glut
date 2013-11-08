@@ -15,6 +15,46 @@ namespace {
   shared_ptr<BVH> targetBVH;
   int currentDepth = 0;
   vector<BoundingBox> boxes;
+  double rate = 1.0;
+  double rotate_y = 0;
+  double rotate_x = 0;
+}
+
+void updateBoundingBoxes()
+{
+  if (!targetBVH) return;
+
+  targetBVH->CollectBoundingBoxes(currentDepth, boxes);
+  cerr << "current depth of bounding boxes = " << currentDepth << endl;
+}
+
+void constructBVH()
+{
+  if (!targetModel) {
+    cerr << "no model" << endl;
+    return;
+  }
+
+  targetBVH.reset(new BVH);
+
+  vector<SceneObject *> targets;
+  centerpos = Vector3::Zero();
+  int num = 0;
+  for (int i=0; i<targetModel->getMaterialCount(); i++) {
+    const Material &mat = targetModel->getMaterial(i);
+    const Model::PolygonList &objs = targetModel->getPolygonList(mat);
+    for (int j=0; j<objs.size(); j++) {
+      targets.push_back(objs[j]);
+      num++;
+      Vector3 polygonpos = (objs[j]->m_pos[0]+objs[j]->m_pos[1]+objs[j]->m_pos[2])/3.0;
+      centerpos += polygonpos;
+    }
+  }
+  centerpos /= num;
+
+  targetBVH->Construct(BVH::CONSTRUCTION_OBJECT_SAH, targets);
+
+  updateBoundingBoxes();
 }
 
 void resize(int w, int h)
@@ -28,15 +68,11 @@ void resize(int w, int h)
   glMatrixMode(GL_MODELVIEW);
 }
 
-double rate = 1.0;
-double rotate_y = 0;
-double rotate_x = 0;
-
 
 void display()
 {
   //glLoadIdentity();
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glLoadIdentity();
 
@@ -116,20 +152,12 @@ void display()
     }
   }
 
-  glFlush();
+  glutSwapBuffers();
 }
 
 void idle(void)
 {
   glutPostRedisplay();
-}
-
-void updateBoundingBoxes()
-{
-  if (!targetBVH) return;
-
-  targetBVH->CollectBoundingBoxes(currentDepth, boxes);
-  cerr << "current depth of bounding boxes = " << currentDepth << endl;
 }
 
 void keyboard(unsigned char key, int x, int y)
@@ -181,35 +209,6 @@ void keyboardSpecial(int key, int x, int y)
   }
 }
 
-void constructBVH()
-{
-  if (!targetModel) {
-    cerr << "no model" << endl;
-    return;
-  }
-
-  targetBVH.reset(new BVH);
-
-  vector<SceneObject *> targets;
-  centerpos = Vector3::Zero();
-  int num = 0;
-  for (int i=0; i<targetModel->getMaterialCount(); i++) {
-    const Material &mat = targetModel->getMaterial(i);
-    const Model::PolygonList &objs = targetModel->getPolygonList(mat);
-    for (int j=0; j<objs.size(); j++) {
-      targets.push_back(objs[j]);
-      num++;
-      Vector3 polygonpos = (objs[j]->m_pos[0]+objs[j]->m_pos[1]+objs[j]->m_pos[2])/3.0;
-      centerpos += polygonpos;
-    }
-  }
-  centerpos /= num;
-
-  targetBVH->Construct(BVH::CONSTRUCTION_OBJECT_SAH, targets);
-
-  updateBoundingBoxes();
-}
-
 void init(void)
 {
   glClearColor(1,1,1,1);
@@ -221,6 +220,8 @@ void init(void)
     exit(-1);
   }
 
+  glEnable(GL_DEPTH_TEST);
+
 
   constructBVH();
 }
@@ -228,7 +229,7 @@ void init(void)
 int main(int argc, char *argv[])
 {
   glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_RGBA);
+  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
   glutInitWindowSize(640, 480);
   glutCreateWindow(argv[0]);
   glutDisplayFunc(display);
