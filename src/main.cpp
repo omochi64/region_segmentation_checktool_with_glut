@@ -99,8 +99,9 @@ void display()
   glLightfv(GL_LIGHT0, GL_DIFFUSE, light0Color);
 
   /* ê}å`ÇÃâÒì] */
+  auto to_rad = [](double v){return v*3.141592/180.0;};
   glRotated(rotate_y, 0.0, 1.0, 0.0);
-  glRotated(rotate_x, 1.0, 0.0, 0.0);
+  glRotated(rotate_x, cos(to_rad(rotate_y)), 0.0, sin(to_rad(rotate_y)));
 
   // ambient
   GLfloat ambient[] = {0.5, 0.5, 0.5, 1.0};
@@ -211,12 +212,12 @@ void keyboardSpecial(int key, int x, int y)
   switch (key) {
   case GLUT_KEY_LEFT:
     // left arrow
-    rotate_y -= 10;
+    rotate_y += 10;
     break;
 
   case GLUT_KEY_RIGHT:
     // right arrow
-    rotate_y += 10;
+    rotate_y -= 10;
     break;
 
   case GLUT_KEY_UP:
