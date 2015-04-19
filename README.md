@@ -1,4 +1,7 @@
 region_segmentation_checktool_with_glut
 =======================================
 
-—Ìˆæ•ªŠ„‚µ‚½Œ‹‰Ê‚ğŠm”F‚·‚é‚½‚ß‚ÌƒR[ƒh
+â€» This is author's utility project. This project is not designed for others.
+
+é ˜åŸŸåˆ†å‰²ã—ãŸçµæœã‚’ç¢ºèªã™ã‚‹ãŸã‚ã®ã‚³ãƒ¼ãƒ‰
+
